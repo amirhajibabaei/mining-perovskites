@@ -3,6 +3,7 @@ import numpy
 from ase.optimize.bfgs import BFGS
 from ase.constraints import UnitCellFilter, StrainFilter
 from gpaw import GPAW, PW, restart
+import os, errno
 
 class ABX3():
     """
@@ -13,7 +14,7 @@ class ABX3():
     X:
     alatt: lattice constant
     """
-    def __init__(self, A, B, X, alatt ):
+    def __init__(self, A, B, X, alatt, prefix='~/abx3_cached/' ):
         cell = numpy.identity(3,dtype=float) * alatt
         formula = A + B + 3*X
         positions = [ (0,0,0), 
@@ -23,19 +24,26 @@ class ABX3():
                       (cell[1]+cell[2])/2
                     ]
         self.atoms = Atoms( formula, positions=positions, cell=cell, pbc=[1,1,1] )
+        # handling files
+        self.path = os.path.expanduser(prefix) + A+B+X+'3/'
+        try:
+            os.makedirs(self.path)
+        except OSError as err:
+            if err.errno != errno.EEXIST:
+                raise
 
     def get_atoms(self):
         return self.atoms
 
     def done(self,stage):
         try: 
-            self.atoms, _ = restart("abx3_"+stage+".gpw")
+            self.atoms, _ = restart( self.path + "abx3_"+stage+".gpw" )
             return True
         except FileNotFoundError:
             return False
 
     def record(self,stage):
-        self.atoms.calc.write("abx3_"+stage+".gpw",'all')
+        self.atoms.calc.write( self.path + "abx3_"+stage+".gpw", 'all' )
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -58,7 +66,7 @@ class ABX3():
 
     def relax(self, fmax=0.005, Filter=None, stage="Relaxation"):
         if not self.done( stage ):
-            self.atoms.calc.set( txt='relaxation.txt' )
+            self.atoms.calc.set( txt = self.path+'relaxation.txt' )
             if Filter:
                 relaxation = BFGS( Filter( self.atoms ) )
             else:
@@ -77,4 +85,3 @@ class ABX3():
 if __name__=='__main__':
     abx3 = ABX3('Sn','Ti','O', 3.0)
     abx3.step1()
-
