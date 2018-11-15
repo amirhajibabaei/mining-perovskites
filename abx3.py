@@ -1,54 +1,91 @@
-from ase import Atoms
+"""
+database will be collection of states and processes
+defined by
+        process( state ) = new state
+        process = state + process
+"""
 import numpy
+from ase import Atoms
 from ase.optimize.bfgs import BFGS
 from ase.constraints import UnitCellFilter, StrainFilter
 from gpaw import GPAW, PW, restart
 import os, errno
+from ase.db import connect
 
 class ABX3():
     """
     A-B-X3 cubic perovskites
-    creates instance of "ase Atoms object" from 
-    A:
-    B: 
-    X:
-    alatt: lattice constant
+    creates an instance of "ase Atoms object" 
+    accessible via abx3.atoms from elements
+    names A, B, and X from a saved state or 
+    a given lattice constant(s)
     """
-    def __init__(self, A, B, X, alatt, prefix='~/abx3_cached/' ):
-        cell = numpy.identity(3,dtype=float) * alatt
-        formula = A + B + 3*X
-        positions = [ (0,0,0), 
-                      (cell[0]+cell[1]+cell[2])/2,
-                      (cell[0]+cell[1])/2,
-                      (cell[0]+cell[2])/2,
-                      (cell[1]+cell[2])/2
-                    ]
-        self.atoms = Atoms( formula, positions=positions, cell=cell, pbc=[1,1,1] )
+    def __init__(self, A, B, X, state, process='any', prefix='~/abx3_cached/'):
         # handling files
-        self.path = os.path.expanduser(prefix) + A+B+X+'3/'
+        self.prefix = os.path.expanduser( prefix )
+        self.path =  self.prefix + A + B + X +'3/'
         try:
             os.makedirs(self.path)
         except OSError as err:
             if err.errno != errno.EEXIST:
                 raise
+        # unique process
+        self.formula = A + B + X + '3'
+        self.process = '_'.join( [self.formula, process] )
+        self.db = connect( self.prefix + 'database.db' )
+        self.pid = self.db.reserve( process = self.process )
+        # make atoms
+        if self.pid is None:
+            self.atoms = None
+        else:
+            self.make_atoms( A, B, X, state )
 
-    def get_atoms(self):
-        return self.atoms
+    def make_atoms(self, A, B, X, state):
+        if isinstance(state,str):
+            self.atoms = self.db.get_atoms( state=state )
+        else:
+            if isinstance(state,float):
+                cell = numpy.diag( 3*[state] )
+            elif isinstance(state,numpy.ndarray):
+                if state.shape==(3,):
+                    cell = numpy.diag( state )
+                if state.shape==(3,3):
+                    cell = state
+            positions = [ (0,0,0), 
+                          (cell[0]+cell[1]+cell[2])/2,
+                          (cell[0]+cell[1])/2,
+                          (cell[0]+cell[2])/2,
+                          (cell[1]+cell[2])/2
+                        ]
+            self.atoms = Atoms( A+B+3*X, positions=positions, cell=cell, pbc=[1,1,1] )
+
+    def savestate(self,state):
+        if self.atoms is not None:
+            sid = self.db.write( self.atoms, process=self.process, state=state )
+            del self.db[self.pid]
+            self.pid = None
+            self.atoms = None
+
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def done(self,stage):
-        try: 
-            self.atoms, _ = restart( self.path + "abx3_"+stage+".gpw" )
-            return True
-        except FileNotFoundError:
-            return False
+        if self.atoms is not None:
+            try: 
+                self.atoms, _ = restart( self.path + "abx3_"+stage+".gpw" )
+                return True
+            except FileNotFoundError:
+                return False
 
     def record(self,stage):
-        self.atoms.calc.write( self.path + "abx3_"+stage+".gpw", 'all' )
+        if self.atoms is not None:
+            self.atoms.calc.write( self.path + "abx3_"+stage+".gpw", 'all' )
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def attach_accurate_calc(self):
-        self.atoms.calc = GPAW(
+        if self.atoms is not None:
+            self.atoms.calc = GPAW(
                                xc='RPBE',
                                mode=PW(500, dedecut='estimate'), # default is ecut = 340
                                kpts=(8, 8, 8),
@@ -56,7 +93,8 @@ class ABX3():
                                )
 
     def attach_fast_calc(self):
-        self.atoms.calc = GPAW(
+        if self.atoms is not None:
+            self.atoms.calc = GPAW(
                                xc='LDA',
                                mode=PW(),
                                kpts=(4, 4, 4),
@@ -65,23 +103,31 @@ class ABX3():
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def relax(self, fmax=0.005, Filter=None, stage="Relaxation"):
-        if not self.done( stage ):
-            self.atoms.calc.set( txt = self.path+'relaxation.txt' )
-            if Filter:
-                relaxation = BFGS( Filter( self.atoms ) )
-            else:
-                relaxation = BFGS( self.atoms )
-            relaxation.run( fmax=fmax )
-            self.record( stage )
+        if self.atoms is not None:
+            if not self.done( stage ):
+                self.atoms.calc.set( txt = self.path+'relaxation.txt' )
+                if Filter:
+                    relaxation = BFGS( Filter( self.atoms ) )
+                else:
+                    relaxation = BFGS( self.atoms )
+                relaxation.run( fmax=fmax )
+                self.record( stage )
 
     def step1(self):
-        self.attach_fast_calc()
-        self.relax( fmax=0.05, Filter=StrainFilter, stage='quickRelaxation' )
-        self.attach_accurate_calc()
-        self.relax( Filter=UnitCellFilter, stage="ucRelaxation" )
+        if self.atoms is not None:
+            self.attach_fast_calc()
+            self.relax( fmax=0.05, Filter=StrainFilter, stage='quickRelaxation' )
+            self.attach_accurate_calc()
+            self.relax( Filter=UnitCellFilter, stage="ucRelaxation" )
 
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if __name__=='__main__':
-    abx3 = ABX3('Sn','Ti','O', 3.0)
-    abx3.step1()
+    abx3 = ABX3('Sn','Ti','O', 3.0, process='create')
+    abx3.savestate('ini')
+
+    abx3 = ABX3('Sn','Ti','O', 'ini',process='relaxing')
+    if abx3.atoms:
+        abx3.step1()
+        abx3.savestate("relaxed")
+
