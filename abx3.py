@@ -1,13 +1,12 @@
 """
-database will be collection of states and processes
-defined by
-        process( state ) = new state
-        process = state + process
+In addition to default keywords, two keywords are defined
+process -> unique for every calculation
+state
 """
 import numpy
 from ase import Atoms
 from ase.optimize.bfgs import BFGS
-from ase.constraints import UnitCellFilter, StrainFilter
+from ase.constraints import UnitCellFilter, StrainFilter, ExpCellFilter
 from gpaw import GPAW, PW, restart, KohnShamConvergenceError
 import os, errno
 from ase.db import connect
@@ -73,6 +72,8 @@ class ABX3():
             self.pid = None
             self.atoms = None
 
+   def __del__(self):
+       self.savestate('interrupted')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -133,11 +134,11 @@ class ABX3():
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if __name__=='__main__':
+    #
     abx3 = ABX3('Sn','Ti','O', 3.0, process='create')
     abx3.savestate('ini')
-
+    #
     abx3 = ABX3('Sn','Ti','O', 'ini',process='relaxing')
-    if abx3.atoms:
-        abx3.step1()
-        abx3.savestate("relaxed")
+    abx3.step1()
+    abx3.savestate("relaxed")
 
