@@ -59,7 +59,7 @@ class ABX3():
                         ]
             self.atoms = Atoms( A+B+3*X, positions=positions, cell=cell, pbc=[1,1,1] )
         # if setups not found
-        spath = os.environ['$GPAW_SETUP_PATH'] + '/'
+        spath = os.environ['GPAW_SETUP_PATH'] + '/'
         for elm in [A,B,X]:
             if not ( os.path.exists(spath+elm+'.LDA.gz') and 
                      os.path.exists(spath+elm+'.RPBE.gz') ):
