@@ -8,7 +8,7 @@ import numpy
 from ase import Atoms
 from ase.optimize.bfgs import BFGS
 from ase.constraints import UnitCellFilter, StrainFilter
-from gpaw import GPAW, PW, restart
+from gpaw import GPAW, PW, restart, KohnShamConvergenceError
 import os, errno
 from ase.db import connect
 
@@ -117,7 +117,10 @@ class ABX3():
                     relaxation = BFGS( Filter( self.atoms ) )
                 else:
                     relaxation = BFGS( self.atoms )
-                relaxation.run( fmax=fmax )
+                try:
+                    relaxation.run( fmax=fmax )
+                except KohnShamConvergenceError:
+                    self.savestate('notconverged')
                 self.record( stage )
 
     def step1(self):
