@@ -6,7 +6,7 @@ state
 import numpy
 from ase import Atoms
 from ase.optimize.bfgs import BFGS
-from ase.constraints import UnitCellFilter, StrainFilter, ExpCellFilter
+from ase.constraints import UnitCellFilter, StrainFilter
 from gpaw import GPAW, PW, restart, KohnShamConvergenceError
 import os, errno
 from ase.db import connect
@@ -72,8 +72,8 @@ class ABX3():
             self.pid = None
             self.atoms = None
 
-   def __del__(self):
-       self.savestate('interrupted')
+    def __del__(self):
+        self.savestate('interrupted')
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
