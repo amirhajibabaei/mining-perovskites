@@ -29,6 +29,7 @@ class ABX3():
             if err.errno != errno.EEXIST:
                 raise
         # unique process
+        self.A, self.B, self.X = A, B, X
         self.formula = A + B + X + '3'
         self.process = '_'.join( [self.formula, process] )
         self.db = connect( self.prefix + 'database.db' )
@@ -41,7 +42,7 @@ class ABX3():
 
     def make_atoms(self, A, B, X, state):
         if isinstance(state,str):
-            self.atoms = self.db.get_atoms( state=state )
+            self.atoms = self.db.get_atoms( A=A, B=B, X=X, state=state )
         else:
             if isinstance(state,float):
                 cell = numpy.diag( 3*[state] )
@@ -67,7 +68,7 @@ class ABX3():
 
     def savestate(self,state):
         if self.atoms is not None:
-            sid = self.db.write( self.atoms, process=self.process, state=state, pid=os.getpid() )
+            sid = self.db.write( self.atoms, process=self.process, A=self.A, B=self.B, X=self.X, state=state, pid=os.getpid() )
             del self.db[self.pid]
             self.pid = None
             self.atoms = None
