@@ -42,7 +42,7 @@ class ABX3():
 
     def make_atoms(self, A, B, X, state):
         if isinstance(state,str):
-            self.atoms = self.db.get_atoms( A=A, B=B, X=X, state=state )
+            self.atoms = self.db.get_atoms( A_ion=A, B_ion=B, X_ion=X, state=state )
         else:
             if isinstance(state,float):
                 cell = numpy.diag( 3*[state] )
@@ -68,7 +68,7 @@ class ABX3():
 
     def savestate(self,state):
         if self.atoms is not None:
-            sid = self.db.write( self.atoms, process=self.process, A=self.A, B=self.B, X=self.X, state=state, pid=os.getpid() )
+            sid = self.db.write( self.atoms, process=self.process, A_ion=self.A, B_ion=self.B, X_ion=self.X, state=state, pid=os.getpid() )
             del self.db[self.pid]
             self.pid = None
             self.atoms = None
