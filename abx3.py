@@ -68,7 +68,7 @@ class ABX3():
 
     def savestate(self,state):
         if self.atoms is not None:
-            sid = self.db.write( self.atoms, process=self.process, A_ion=self.A, B_ion=self.B, X_ion=self.X, state=state, pid=os.getpid() )
+            sid = self.db.write( self.atoms, process=self.process, A_ion=self.A, B_ion=self.B, X_ion=self.X, state=state )
             del self.db[self.pid]
             self.pid = None
             self.atoms = None
