@@ -111,7 +111,7 @@ class ABX3():
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    def relax(self, fmax=0.005, Filter=None, stage="Relaxation"):
+    def relax(self, fmax=0.005, Filter=None, stage="Relaxation", maxsteps=100):
         if self.atoms is not None:
             if not self.done( stage ):
                 self.atoms.calc.set( txt = self.path+'relaxation.txt' )
@@ -120,9 +120,10 @@ class ABX3():
                 else:
                     relaxation = BFGS( self.atoms )
                 try:
-                    relaxation.run( fmax=fmax )
+                    relaxation.run( fmax=fmax, steps=maxsteps )
                 except KohnShamConvergenceError:
                     self.savestate('notconverged')
+                if relaxation.get_number_of_steps()==maxsteps: self.savestate('maxsteps')
                 self.record( stage )
 
     def step1(self):
