@@ -42,7 +42,7 @@ class ABX3():
 
     def make_atoms(self, A, B, X, state):
         if isinstance(state,str):
-            self.atoms = self.db.get_atoms( A_ion=A, B_ion=B, X_ion=X, state=state )
+            self.atoms = self.db.get_atoms( A_ion=A, B_ion=B, X_ion=X, state=state, attach_calculator=True )
         else:
             if isinstance(state,float):
                 cell = numpy.diag( 3*[state] )
@@ -69,12 +69,16 @@ class ABX3():
     def savestate(self,state):
         if self.atoms is not None:
             sid = self.db.write( self.atoms, process=self.process, A_ion=self.A, B_ion=self.B, X_ion=self.X, state=state )
-            del self.db[self.pid]
-            self.pid = None
-            self.atoms = None
+            self.end_process()
 
     def __del__(self):
         self.savestate('interrupted')
+
+    def end_process(self):
+        del self.db[self.pid]
+        self.pid = None
+        self.atoms = None
+
 
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -128,8 +132,8 @@ class ABX3():
 
     def step1(self):
         if self.atoms is not None:
-            self.attach_fast_calc()
-            self.relax( fmax=0.05, Filter=StrainFilter, stage='quickRelaxation' )
+            #self.attach_fast_calc()
+            #self.relax( fmax=0.05, Filter=StrainFilter, stage='quickRelaxation' )
             self.attach_accurate_calc()
             self.relax( Filter=UnitCellFilter, stage="ucRelaxation" )
 
