@@ -7,7 +7,7 @@ import numpy
 from ase import Atoms
 from ase.optimize.bfgs import BFGS
 from ase.constraints import UnitCellFilter, StrainFilter
-from gpaw import GPAW, PW, restart, KohnShamConvergenceError
+from gpaw import GPAW, PW, FermiDirac, restart, KohnShamConvergenceError
 import os, errno
 from ase.db import connect
 
@@ -113,6 +113,16 @@ class ABX3():
                                kpts=(4, 4, 4),
                                )
 
+
+    def attach_gllbsc_calc(self):
+        if self.atoms is not None:
+            self.atoms.calc = GPAW(
+                               xc='GLLBSC',
+                               mode=PW(), 
+                               kpts=(10, 10, 10),
+                               occupations=FermiDirac(width=0.05)
+                               )
+
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     def relax(self, fmax=0.005, Filter=None, stage="Relaxation", maxsteps=100):
@@ -137,6 +147,20 @@ class ABX3():
             self.attach_accurate_calc()
             self.relax( Filter=UnitCellFilter, stage="ucRelaxation" )
 
+
+    def gllbsc_bandgap(self,stage='gllbsc_gs'):
+        if self.atoms is not None:
+            if not self.done( stage ):
+                self.attach_gllbsc_calc()
+                self.atoms.get_potential_energy()
+                self.record( stage )
+            try:
+                response = self.atoms.calc.hamiltonian.xc.xcs['RESPONSE']
+                response.calculate_delta_xc()
+                Eks, Dxc = response.calculate_delta_xc_perturbation()
+            except IndexError:
+                Eks, Dxc = None, None 
+            return Eks, Dxc
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 if __name__=='__main__':
